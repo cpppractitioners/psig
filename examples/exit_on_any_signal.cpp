@@ -4,15 +4,15 @@
 bool handle_signal(int sig)
 {
     std::cout << "Handling signal " << sig << std::endl;
-    
+
     switch (sig)
     {
-    case SIGTERM:
-    case SIGHUP:
-        return false;
-    case SIGINT:
-    default:
-        return true;
+        case SIGTERM:
+        case SIGHUP:
+            return false;
+        case SIGINT:
+        default:
+            return true;
     }
 }
 
@@ -29,7 +29,7 @@ extern "C" int main(int argc, char *argv[])
     signals += SIGINT;
     signals += SIGTERM;
     signals += SIGHUP;
-    
-    mgr.init(signals, 1000000000L);
+
+    mgr.block_signals(signals, std::chrono::nanoseconds(1000000000L));
     return mgr.exec(handle_signal, handle_exit);
 }

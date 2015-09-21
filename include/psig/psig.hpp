@@ -243,56 +243,55 @@ inline signum_t wait(const sigset &signals,
 
 class signal_manager
 {
-public:
-    inline signal_manager() : m_running(false)
-    {
-    }
-    
-    inline bool init(int64_t timeout_nsec = 0)
+   public:
+    inline signal_manager() : m_running(false) {}
+
+    inline bool block_signals(const std::chrono::nanoseconds &timeout_nsec =
+                         std::chrono::nanoseconds(0))
     {
         m_timeout_nsec = timeout_nsec;
-        
+
         this_thread::fill_mask();
-        
+
         m_signals += SIGHUP;
         m_signals += SIGINT;
         m_signals += SIGTERM;
-        
+
         m_running = true;
         return true;
     }
-    
-    inline bool init(const sigset &signals, int64_t timeout_nsec = 0)
+
+    inline bool block_signals(const sigset &signals,
+                     const std::chrono::nanoseconds &timeout_nsec =
+                         std::chrono::nanoseconds(0))
     {
         m_timeout_nsec = timeout_nsec;
-        
+
         this_thread::fill_mask();
-        
+
         m_signals = signals;
-        
+
         m_running = true;
         return true;
     }
-    
-    inline int exec(const std::function< bool(int) > &signalHandler,
-        const std::function< int() > &exitHandler)
+
+    inline int exec(const std::function< bool(int)> &signalHandler,
+                    const std::function< int() > &exitHandler)
     {
-        this_thread::clear_mask();
-        
         while (m_running)
         {
             ::siginfo_t info;
             signum_t signum;
-            
-            if (m_timeout_nsec > 0)
+
+            if (m_timeout_nsec > std::chrono::nanoseconds(0))
             {
-                signum = wait(m_signals, std::chrono::nanoseconds(m_timeout_nsec), &info);
+                signum = wait(m_signals, m_timeout_nsec, &info);
             }
             else
             {
                 signum = wait(m_signals, &info);
             }
-            
+
             if (signum > 0)
             {
                 if (!signalHandler(signum))
@@ -302,49 +301,43 @@ public:
                 }
             }
         }
-        
+
         return exitHandler();
     }
-    
-    inline int exec(const std::function< bool(int) > &signalHandler)
+
+    inline int exec(const std::function< bool(int)> &signalHandler)
     {
-        return exec(signalHandler, std::bind(&signal_manager::default_exit_handler,
-            this));
+        return exec(signalHandler,
+                    std::bind(&signal_manager::default_exit_handler, this));
     }
-    
+
     inline int exec(const std::function< int() > &exitHandler)
     {
         return exec(std::bind(&signal_manager::default_signal_handler, this),
-            exitHandler);
+                    exitHandler);
     }
-    
+
     inline int exec()
     {
         return exec(std::bind(&signal_manager::default_signal_handler, this),
-            std::bind(&signal_manager::default_exit_handler, this));
-    }
-    
-    inline void exit(int sig = SIGINT)
-    {
-        m_running = false;
-        kill(0, sig);
+                    std::bind(&signal_manager::default_exit_handler, this));
     }
 
-private:
-    inline int default_exit_handler()
+    inline void kill(int sig = SIGINT)
     {
-        return 0;
+        m_running = false;
+        ::kill(0, sig);
     }
-    
-    inline bool default_signal_handler()
-    {
-        return false;
-    }
-    
-private:
+
+   private:
+    inline int default_exit_handler() { return 0; }
+
+    inline bool default_signal_handler() { return false; }
+
+   private:
     sigset m_signals;
     std::atomic< bool > m_running;
-    int64_t m_timeout_nsec;
+    std::chrono::nanoseconds m_timeout_nsec;
 };
 
 }  // namespace psig
