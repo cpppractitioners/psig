@@ -5,6 +5,10 @@
 #include <unordered_set>
 #include <vector>
 #include <signal.h>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <functional>
 
 extern "C" {
 inline void psig_signal_handler(int signum) {}
@@ -236,5 +240,111 @@ inline signum_t wait(const sigset &signals,
     this_thread::set_mask(oldset);
     return signum;
 }
+
+class signal_manager
+{
+public:
+    inline signal_manager() : m_running(false)
+    {
+    }
+    
+    inline bool init(int64_t timeout_nsec = 0)
+    {
+        m_timeout_nsec = timeout_nsec;
+        
+        this_thread::fill_mask();
+        
+        m_signals += SIGHUP;
+        m_signals += SIGINT;
+        m_signals += SIGTERM;
+        
+        m_running = true;
+        return true;
+    }
+    
+    inline bool init(const sigset &signals, int64_t timeout_nsec = 0)
+    {
+        m_timeout_nsec = timeout_nsec;
+        
+        this_thread::fill_mask();
+        
+        m_signals = signals;
+        
+        m_running = true;
+        return true;
+    }
+    
+    inline int exec(const std::function< bool(int) > &signalHandler,
+        const std::function< int() > &exitHandler)
+    {
+        this_thread::clear_mask();
+        
+        while (m_running)
+        {
+            ::siginfo_t info;
+            signum_t signum;
+            
+            if (m_timeout_nsec > 0)
+            {
+                signum = wait(m_signals, std::chrono::nanoseconds(m_timeout_nsec), &info);
+            }
+            else
+            {
+                signum = wait(m_signals, &info);
+            }
+            
+            if (signum > 0)
+            {
+                if (!signalHandler(signum))
+                {
+                    m_running = false;
+                    break;
+                }
+            }
+        }
+        
+        return exitHandler();
+    }
+    
+    inline int exec(const std::function< bool(int) > &signalHandler)
+    {
+        return exec(signalHandler, std::bind(&signal_manager::default_exit_handler,
+            this));
+    }
+    
+    inline int exec(const std::function< int() > &exitHandler)
+    {
+        return exec(std::bind(&signal_manager::default_signal_handler, this),
+            exitHandler);
+    }
+    
+    inline int exec()
+    {
+        return exec(std::bind(&signal_manager::default_signal_handler, this),
+            std::bind(&signal_manager::default_exit_handler, this));
+    }
+    
+    inline void exit(int sig = SIGINT)
+    {
+        m_running = false;
+        kill(0, sig);
+    }
+
+private:
+    inline int default_exit_handler()
+    {
+        return 0;
+    }
+    
+    inline bool default_signal_handler()
+    {
+        return false;
+    }
+    
+private:
+    sigset m_signals;
+    std::atomic< bool > m_running;
+    int64_t m_timeout_nsec;
+};
 
 }  // namespace psig
