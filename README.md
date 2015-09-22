@@ -20,7 +20,43 @@ make install
 ```
 
 #### Examples
-##### Synchronous
+##### Direct
+```c++
+#include <psig/psig.hpp>
+#include <iostream>
+
+extern "C"
+int main(int argc, char *argv[])
+{
+    psig::this_thread::fill_mask(); // Block all signals
+
+    // do application initialization here
+    MyApp app; 
+    app.start();
+
+    psig::sigset signals{ SIGTERM, SIGINT, SIGHUP };
+    psig::signum_t signum = psig::wait(signals);
+
+    while (true)
+    {
+        switch (signum)
+    	{
+	    case SIGTERM:
+            case SIGINT:
+                app.stop();
+                return 0;
+            case SIGHUP:
+                app.reload();
+	        break;
+            default:
+                break;
+        }
+    }
+}
+```
+
+##### Signal Manager
+###### Synchronous
 ```c++
 #include <psig/psig.hpp>
 #include <iostream>
@@ -57,7 +93,7 @@ extern "C" int main(int argc, char *argv[])
 }
 ```
 
-##### Asynchronous
+###### Asynchronous
 ```c++
 #include <psig/psig.hpp>
 #include <iostream>
