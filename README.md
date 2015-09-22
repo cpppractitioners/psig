@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     {
         switch (signum)
     	{
-	    case SIGTERM:
+            case SIGTERM:
             case SIGINT:
                 app.stop();
                 return 0;
