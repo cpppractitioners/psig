@@ -31,6 +31,7 @@
 #pragma once
 
 #include <cstring>
+#include <thread>
 #include <chrono>
 #include <unordered_set>
 #include <vector>
@@ -39,7 +40,6 @@
 #include <cstdint>
 #include <memory>
 #include <functional>
-#include <thread>
 
 extern "C" {
 inline void psig_signal_handler(int signum) {}
