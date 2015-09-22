@@ -28,11 +28,12 @@ make install
 extern "C"
 int main(int argc, char *argv[])
 {
-    psig::this_thread::fill_mask(); // Block all signals
+    App app;
+    app.parse(argc, argv);
 
-    // do application initialization here
-    MyApp app; 
-    app.start();
+    psig::this_thread::fill_mask(); // block all signals
+
+    app.start(); // spawn threads
 
     psig::sigset signals{ SIGTERM, SIGINT, SIGHUP };
     psig::signum_t signum = psig::wait(signals);
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
                 return 0;
             case SIGHUP:
                 app.reload();
-	        break;
+                break;
             default:
                 break;
         }
