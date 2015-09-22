@@ -5,4 +5,4 @@ Synchronous Handling of Asynchronous POSIX Signals
 psig gives the user an interface for handling POSIX signals without the restrictions of signal handlers.
 
 #### Authors
-Chris Knight
+Chris Knight, Daniel C. Dillon

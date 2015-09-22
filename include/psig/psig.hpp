@@ -1,3 +1,33 @@
+/* Copyright (c) 2015, Chris Knight, Daniel C. Dillon
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
 #pragma once
 
 #include <cstring>
@@ -9,6 +39,7 @@
 #include <cstdint>
 #include <memory>
 #include <functional>
+#include <thread>
 
 extern "C" {
 inline void psig_signal_handler(int signum) {}
@@ -280,10 +311,39 @@ class signal_manager
         return exec(&signal_manager::default_signal_handler,
                     &signal_manager::default_exit_handler);
     }
+    
+    static inline void exec_async(const std::function< bool(int)> &signalHandler,
+                           const std::function< int() > &exitHandler)
+    {
+        instance().exec_async_internal(signalHandler, exitHandler);
+    }
+
+    static inline void exec_async(const std::function< bool(int)> &signalHandler)
+    {
+        exec_async(signalHandler, &signal_manager::default_exit_handler);
+    }
+
+    static inline void exec_async(const std::function< int() > &exitHandler)
+    {
+        exec_async(&signal_manager::default_signal_handler, exitHandler);
+    }
+
+    static inline void exec_async()
+    {
+        exec_async(&signal_manager::default_signal_handler,
+                    &signal_manager::default_exit_handler);
+    }
+    
+    static inline void wait_for_exec_async()
+    {
+        instance().wait_for_exec_async_internal();
+    }
 
     static inline void kill(int sig = SIGINT) { ::kill(0, sig); }
 
     static inline void stop(int sig = SIGINT) { instance().stop_internal(sig); }
+    
+    static inline int exit_code() { return instance().exit_code_internal(); }
 
    private:
     static inline signal_manager &instance()
@@ -292,7 +352,7 @@ class signal_manager
         return mgr;
     }
 
-    inline signal_manager() : m_running(false) {}
+    inline signal_manager() : m_running(false), m_exit_code(0) {}
     signal_manager(const signal_manager &rhs) = delete;
     signal_manager &operator=(const signal_manager &rhs) = delete;
 
@@ -353,14 +413,42 @@ class signal_manager
             }
         }
 
-        return exitHandler();
+        m_exit_code = exitHandler();
+        return m_exit_code;
+    }
+    
+    inline void exec_internal_noret(const std::function< bool(int)> &signalHandler,
+                             const std::function< int() > &exitHandler)
+    {
+        exec_internal(signalHandler, exitHandler);
+    }
+    
+    inline void exec_async_internal(const std::function< bool(int)> &signalHandler,
+                             const std::function< int() > &exitHandler)
+    {
+        m_thread.reset(new std::thread(std::bind(&signal_manager::exec_internal_noret, this, signalHandler, exitHandler)));
+    }
+    
+    inline void wait_for_exec_async_internal()
+    {
+        if (m_thread)
+        {
+            m_thread->join();
+        }
     }
 
     inline void stop_internal(int sig = SIGINT)
     {
         m_running = false;
         ::kill(0, sig);
+        
+        if (m_thread)
+        {
+            m_thread->join();
+        }
     }
+    
+    inline int exit_code_internal() { return m_exit_code; }
 
    private:
     static inline int default_exit_handler() { return 0; }
@@ -371,6 +459,8 @@ class signal_manager
     sigset m_signals;
     std::atomic< bool > m_running;
     std::chrono::nanoseconds m_timeout_nsec;
+    std::unique_ptr< std::thread > m_thread;
+    int m_exit_code;
 };
 
 }  // namespace psig
