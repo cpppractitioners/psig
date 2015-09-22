@@ -9,8 +9,8 @@ bool handle_signal(int sig)
     {
         case SIGTERM:
         case SIGHUP:
-            return false;
         case SIGINT:
+            return false;
         default:
             return true;
     }
@@ -24,12 +24,10 @@ int handle_exit()
 
 extern "C" int main(int argc, char *argv[])
 {
-    psig::signal_manager mgr;
-    psig::sigset signals;
-    signals += SIGINT;
-    signals += SIGTERM;
-    signals += SIGHUP;
+    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
+    psig::signal_manager::block_signals(signals);
 
-    mgr.block_signals(signals, std::chrono::nanoseconds(1000000000L));
-    return mgr.exec(handle_signal, handle_exit);
+    // do application initialization here
+
+    return psig::signal_manager::exec(handle_signal, handle_exit);
 }

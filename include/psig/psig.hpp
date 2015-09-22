@@ -244,10 +244,61 @@ inline signum_t wait(const sigset &signals,
 class signal_manager
 {
    public:
-    inline signal_manager() : m_running(false) {}
+    static inline bool block_signals(
+        const std::chrono::nanoseconds &timeout_nsec =
+            std::chrono::nanoseconds(0))
+    {
+        return instance().block_signals_internal(timeout_nsec);
+    }
 
-    inline bool block_signals(const std::chrono::nanoseconds &timeout_nsec =
-                         std::chrono::nanoseconds(0))
+    static inline bool block_signals(
+        const sigset &signals,
+        const std::chrono::nanoseconds &timeout_nsec =
+            std::chrono::nanoseconds(0))
+    {
+        return instance().block_signals_internal(signals, timeout_nsec);
+    }
+
+    static inline int exec(const std::function< bool(int)> &signalHandler,
+                           const std::function< int() > &exitHandler)
+    {
+        return instance().exec_internal(signalHandler, exitHandler);
+    }
+
+    static inline int exec(const std::function< bool(int)> &signalHandler)
+    {
+        return exec(signalHandler, &signal_manager::default_exit_handler);
+    }
+
+    static inline int exec(const std::function< int() > &exitHandler)
+    {
+        return exec(&signal_manager::default_signal_handler, exitHandler);
+    }
+
+    static inline int exec()
+    {
+        return exec(&signal_manager::default_signal_handler,
+                    &signal_manager::default_exit_handler);
+    }
+
+    static inline void kill(int sig = SIGINT) { ::kill(0, sig); }
+
+    static inline void stop(int sig = SIGINT) { instance().stop_internal(sig); }
+
+   private:
+    static inline signal_manager &instance()
+    {
+        static signal_manager mgr;
+        return mgr;
+    }
+
+    inline signal_manager() : m_running(false) {}
+    signal_manager(const signal_manager &rhs) = delete;
+    signal_manager &operator=(const signal_manager &rhs) = delete;
+
+    inline bool block_signals_internal(
+        const std::chrono::nanoseconds &timeout_nsec =
+            std::chrono::nanoseconds(0))
     {
         m_timeout_nsec = timeout_nsec;
 
@@ -261,9 +312,10 @@ class signal_manager
         return true;
     }
 
-    inline bool block_signals(const sigset &signals,
-                     const std::chrono::nanoseconds &timeout_nsec =
-                         std::chrono::nanoseconds(0))
+    inline bool block_signals_internal(
+        const sigset &signals,
+        const std::chrono::nanoseconds &timeout_nsec =
+            std::chrono::nanoseconds(0))
     {
         m_timeout_nsec = timeout_nsec;
 
@@ -275,8 +327,8 @@ class signal_manager
         return true;
     }
 
-    inline int exec(const std::function< bool(int)> &signalHandler,
-                    const std::function< int() > &exitHandler)
+    inline int exec_internal(const std::function< bool(int)> &signalHandler,
+                             const std::function< int() > &exitHandler)
     {
         while (m_running)
         {
@@ -297,7 +349,6 @@ class signal_manager
                 if (!signalHandler(signum))
                 {
                     m_running = false;
-                    break;
                 }
             }
         }
@@ -305,34 +356,16 @@ class signal_manager
         return exitHandler();
     }
 
-    inline int exec(const std::function< bool(int)> &signalHandler)
-    {
-        return exec(signalHandler,
-                    std::bind(&signal_manager::default_exit_handler, this));
-    }
-
-    inline int exec(const std::function< int() > &exitHandler)
-    {
-        return exec(std::bind(&signal_manager::default_signal_handler, this),
-                    exitHandler);
-    }
-
-    inline int exec()
-    {
-        return exec(std::bind(&signal_manager::default_signal_handler, this),
-                    std::bind(&signal_manager::default_exit_handler, this));
-    }
-
-    inline void kill(int sig = SIGINT)
+    inline void stop_internal(int sig = SIGINT)
     {
         m_running = false;
         ::kill(0, sig);
     }
 
    private:
-    inline int default_exit_handler() { return 0; }
+    static inline int default_exit_handler() { return 0; }
 
-    inline bool default_signal_handler() { return false; }
+    static inline bool default_signal_handler(int sig) { return false; }
 
    private:
     sigset m_signals;
