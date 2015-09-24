@@ -1,0 +1,14 @@
+Source: libpsig
+Priority: optional
+Maintainer: Daniel C. Dillon <dcdillon@gmail.com>
+Build-Depends: debhelper (>= 9), autotools-dev, autoconf-archive
+Standards-Version: 3.9.6
+Section: libs
+
+Package: libpsig-dev
+Section: libdevel
+Architecture: any
+Depends: ${misc:Depends}
+Description: C++ header-only library for managing POSIX signals.
+ psig provides an interface for handling POSIX signals in a
+ synchronous manner.
