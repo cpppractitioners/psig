@@ -195,7 +195,7 @@ inline sigset operator-(const sigset& lhs, const sigset& rhs)
 inline sigset operator+(const sigset& lhs, const signum_t rhs)
 {
     sigset ret(lhs);
-    ret -= rhs;
+    ret += rhs;
     return ret;
 }
 
