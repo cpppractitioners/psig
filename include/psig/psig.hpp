@@ -58,9 +58,6 @@ sigset get_mask();
 typedef int signum_t;
 typedef int sigcnt_t;
 
-typedef std::function<bool(signum_t)> signal_handler;
-typedef std::function<int()> exit_handler;
-
 class sigset
 {
  public:
@@ -309,6 +306,9 @@ inline signum_t wait(const sigset& signals, std::chrono::nanoseconds timeout, ::
 class signal_manager
 {
  public:
+    typedef std::function<bool(signum_t, const ::siginfo_t&)> signal_handler;
+    typedef std::function<int()> exit_handler;
+
     static bool block_signals(const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
     {
         return instance().block_signals_internal({SIGINT, SIGTERM, SIGHUP}, timeout);
@@ -393,22 +393,20 @@ class signal_manager
 
     int exec_internal(const signal_handler signalHandler, const exit_handler exitHandler)
     {
-        m_thraed_id = std::this_thread::get_id();
         m_running = true;
-
         while (m_running)
         {
             ::siginfo_t info;
             signum_t signum;
 
-            if (m_timeout)
+            if (m_timeout > std::chrono::nanoseconds(0))
                 signum = wait(m_signals, m_timeout, &info);
             else
                 signum = wait(m_signals, &info);
 
             if (signum)
 	    {
-                if (!signalHandler(signum))
+	        if (!signalHandler(signum, info))
                     m_running = false;
             }
         }
@@ -438,7 +436,7 @@ class signal_manager
         if (m_running)
 	{
 	    m_running = false;
-	    ::pthread_kill(m_thread_id, signum);
+	    ::kill(0, signum);
 	}
         
         if (m_thread.joinable())
@@ -449,15 +447,13 @@ class signal_manager
 
  private:
     static int default_exit_handler() { return 0; }
-
-    static bool default_signal_handler(const signum_t signum) { return false; }
+    static bool default_signal_handler(const signum_t signum, const ::siginfo_t& info) { return false; }
 
  private:
     sigset m_signals;
     std::atomic< bool > m_running;
     std::chrono::nanoseconds m_timeout = std::chrono::nanoseconds(0);
     std::thread m_thread;
-    std::thread::id m_thread_id;
     int m_exit_code = 0;
 };
 
