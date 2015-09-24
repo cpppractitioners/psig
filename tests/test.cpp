@@ -18,15 +18,18 @@ void test_mask()
     psig::sigset cursigset = psig::this_thread::blocked_signals();
 
     std::cout << "Signals in new mask: ";
-    for (psig::signum_t signum : newsigset.signals()) std::cout << signum << " ";
+    for (psig::signum_t signum : newsigset.signals())
+        std::cout << signum << " ";
     std::cout << std::endl;
 
     std::cout << "Signals in old mask: ";
-    for (psig::signum_t signum : oldsigset.signals()) std::cout << signum << " ";
+    for (psig::signum_t signum : oldsigset.signals())
+        std::cout << signum << " ";
     std::cout << std::endl;
 
     std::cout << "Signals in cur mask: ";
-    for (psig::signum_t signum : cursigset.signals()) std::cout << signum << " ";
+    for (psig::signum_t signum : cursigset.signals())
+        std::cout << signum << " ";
     std::cout << std::endl;
 
     KTL_CHECK(oldsigset.empty());
@@ -59,7 +62,8 @@ void test_mask()
     KTL_CHECK(cursigset.has(SIGRTMAX));
     KTL_CHECK(cursigset.has(psig::rt::signum(0)));  // SIGRTMIN
     KTL_CHECK(cursigset.has(psig::rt::signum(1)));  // SIGRTMIN+1
-    KTL_CHECK(cursigset.has(psig::rt::signum(psig::rt::sigcount())));  // SIGRTMAX
+    KTL_CHECK(
+        cursigset.has(psig::rt::signum(psig::rt::sigcount())));  // SIGRTMAX
 }
 
 void test_wait()
@@ -89,7 +93,7 @@ void test_timed_wait()
     std::cout << "Received signal: " << signum << std::endl;
 }
 
-extern "C" int main(int argc, char *argv[])
+extern "C" int main(int argc, char* argv[])
 {
     test_mask();
     test_wait();

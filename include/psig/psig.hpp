@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #pragma once
 
 #include <cstring>
@@ -47,8 +47,9 @@ inline void psig_signal_handler(int signum) {}
 
 namespace psig
 {
-class sigset; 
-namespace this_thread {
+class sigset;
+namespace this_thread
+{
 namespace impl
 {
 sigset get_mask();
@@ -60,7 +61,7 @@ typedef int sigcnt_t;
 
 class sigset
 {
- public:
+public:
     sigset() noexcept { clear(); }
     sigset(const sigset& s) noexcept : m_signals(s.m_signals)
     {
@@ -82,7 +83,7 @@ class sigset
     typedef ::sigset_t* native_handle_type;
     native_handle_type native_handle() const
     {
-        return const_cast<native_handle_type>(&m_handle);
+        return const_cast< native_handle_type >(&m_handle);
     }
 
     typedef std::unordered_set< signum_t > signals_type;
@@ -112,38 +113,45 @@ class sigset
 
     sigset& operator+=(const sigset& that) noexcept
     {
-        for (signum_t signum : that.signals())
-	    insert(signum);
+        for (signum_t signum : that.signals()) insert(signum);
         return *this;
     }
 
     sigset& operator-=(const sigset& that) noexcept
     {
-        for (signum_t signum : that.signals())
-	    erase(signum);
+        for (signum_t signum : that.signals()) erase(signum);
         return *this;
     }
 
-    sigset& operator&=(const sigset& that) noexcept 
+    sigset& operator&=(const sigset& that) noexcept
     {
         ::sigset_t left;
         std::memcpy(&left, &m_handle, sizeof(m_handle));
         ::sigandset(&m_handle, &left, &that.m_handle);
-	return *this;
+        return *this;
     }
 
-    sigset& operator|=(const sigset& that) noexcept 
+    sigset& operator|=(const sigset& that) noexcept
     {
         ::sigset_t left;
         std::memcpy(&left, &m_handle, sizeof(m_handle));
         ::sigorset(&m_handle, &left, &that.m_handle);
-	return *this;
+        return *this;
     }
 
-    bool operator==(const sigset& that) const { return (m_signals == that.m_signals); }
-    bool operator!=(const sigset& that) const { return (m_signals != that.m_signals); }
+    bool operator==(const sigset& that) const
+    {
+        return (m_signals == that.m_signals);
+    }
+    bool operator!=(const sigset& that) const
+    {
+        return (m_signals != that.m_signals);
+    }
 
-    bool has(const signum_t signum) { return (m_signals.find(signum) != m_signals.end()); }
+    bool has(const signum_t signum)
+    {
+        return (m_signals.find(signum) != m_signals.end());
+    }
     bool empty() const { return (m_signals.size() == 0); }
 
     void fill() { ::sigfillset(&m_handle); }
@@ -153,7 +161,7 @@ class sigset
         m_signals.clear();
     }
 
- private:
+private:
     friend sigset this_thread::impl::get_mask();  // for init_from_handle()
 
     void copy_handle(const sigset& that)
@@ -163,8 +171,7 @@ class sigset
     void init_handle(std::initializer_list< signum_t > signums)
     {
         clear();
-        for (signum_t signum : signums)
-	    insert(signum);
+        for (signum_t signum : signums) insert(signum);
     }
     void init_from_handle()
     {
@@ -173,7 +180,7 @@ class sigset
                 m_signals.insert(signum);
     }
 
- private:
+private:
     ::sigset_t m_handle;
     signals_type m_signals;
 };
@@ -227,7 +234,7 @@ inline signum_t sigmax() { return SIGRTMAX; }
 inline signum_t sigcount() { return sigmax() - sigmin(); }
 inline signum_t signum(const sigcnt_t rtsigcnt) { return sigmin() + rtsigcnt; }
 inline sigcnt_t sigcnt(const signum_t rtsignum) { return rtsignum - sigmin(); }
-} // namespace rt
+}  // namespace rt
 
 namespace this_thread
 {
@@ -247,29 +254,41 @@ inline sigset get_mask()
     oldset.init_from_handle();
     return oldset;
 }
-} // namespace impl
+}  // namespace impl
 
 inline sigset blocked_signals() noexcept { return impl::get_mask(); }
 
-inline sigset block_signals(const sigset& newset) noexcept { return impl::set_mask(SIG_SETMASK, newset); }
-inline sigset unblock_signals(const sigset& newset) noexcept { return impl::set_mask(SIG_UNBLOCK, newset); }
+inline sigset block_signals(const sigset& newset) noexcept
+{
+    return impl::set_mask(SIG_SETMASK, newset);
+}
+inline sigset unblock_signals(const sigset& newset) noexcept
+{
+    return impl::set_mask(SIG_UNBLOCK, newset);
+}
 
-inline sigset block_all_signals() noexcept { return impl::set_mask(SIG_SETMASK, sigset(true)); }
-inline sigset unblock_all_signals() noexcept { return impl::set_mask(SIG_SETMASK, sigset()); }
+inline sigset block_all_signals() noexcept
+{
+    return impl::set_mask(SIG_SETMASK, sigset(true));
+}
+inline sigset unblock_all_signals() noexcept
+{
+    return impl::set_mask(SIG_SETMASK, sigset());
+}
 
 }  // namespace this_thread
 
-namespace this_process 
+namespace this_process
 {
 inline sigset get_registered_signals()
 {
     sigset existing;
     for (signum_t signal : sigset(true).signals())
     {
-	struct ::sigaction oldaction;
-	::sigaction(signal, nullptr, &oldaction);
-	if (oldaction.sa_handler)
-	    existing += signal;
+        struct ::sigaction oldaction;
+        ::sigaction(signal, nullptr, &oldaction);
+        if (oldaction.sa_handler)
+            existing += signal;
     }
     return existing;
 }
@@ -292,12 +311,14 @@ inline signum_t wait(const sigset& signals, ::siginfo_t* info = nullptr)
 {
     const sigset existing = this_process::get_registered_signals();
     const sigset filtered = signals - existing;
-    const sigset all      = signals + existing;
+    const sigset all = signals + existing;
     this_process::set_action(filtered);
     return ::sigwaitinfo(all.native_handle(), info);
 }
 
-inline signum_t wait(const sigset& signals, std::chrono::nanoseconds timeout, ::siginfo_t *info = nullptr)
+inline signum_t wait(const sigset& signals,
+                     std::chrono::nanoseconds timeout,
+                     ::siginfo_t* info = nullptr)
 {
     ::timespec ts;
     ts.tv_sec =
@@ -309,28 +330,33 @@ inline signum_t wait(const sigset& signals, std::chrono::nanoseconds timeout, ::
 
     const sigset existing = this_process::get_registered_signals();
     const sigset filtered = signals - existing;
-    const sigset all      = signals + filtered;
+    const sigset all = signals + filtered;
     this_process::set_action(filtered);
     return ::sigtimedwait(all.native_handle(), info, &ts);
 }
 
 class signal_manager
 {
- public:
-    typedef std::function<bool(signum_t, const ::siginfo_t&)> signal_handler;
-    typedef std::function<int()> exit_handler;
+public:
+    typedef std::function< bool(signum_t, const ::siginfo_t&)> signal_handler;
+    typedef std::function< int() > exit_handler;
 
-    static bool block_signals(const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
+    static bool block_signals(
+        const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
     {
-        return instance().block_signals_internal({SIGINT, SIGTERM, SIGHUP}, timeout);
+        return instance().block_signals_internal({SIGINT, SIGTERM, SIGHUP},
+                                                 timeout);
     }
 
-    static bool block_signals(const sigset& signals, const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
+    static bool block_signals(
+        const sigset& signals,
+        const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
     {
         return instance().block_signals_internal(signals, timeout);
     }
 
-    static int exec(const signal_handler signalHandler, const exit_handler exitHandler)
+    static int exec(const signal_handler signalHandler,
+                    const exit_handler exitHandler)
     {
         return instance().exec_internal(signalHandler, exitHandler);
     }
@@ -347,10 +373,12 @@ class signal_manager
 
     static int exec()
     {
-        return exec(&signal_manager::default_signal_handler, &signal_manager::default_exit_handler);
+        return exec(&signal_manager::default_signal_handler,
+                    &signal_manager::default_exit_handler);
     }
-    
-    static void exec_async(const signal_handler signalHandler, const exit_handler exitHandler)
+
+    static void exec_async(const signal_handler signalHandler,
+                           const exit_handler exitHandler)
     {
         instance().exec_async_internal(signalHandler, exitHandler);
     }
@@ -367,31 +395,36 @@ class signal_manager
 
     static void exec_async()
     {
-        exec_async(&signal_manager::default_signal_handler, &signal_manager::default_exit_handler);
+        exec_async(&signal_manager::default_signal_handler,
+                   &signal_manager::default_exit_handler);
     }
-    
+
     static void wait_for_exec_async()
     {
         instance().wait_for_exec_async_internal();
     }
 
     static void kill(const signum_t sig = SIGINT) { ::kill(0, sig); }
-    static void stop(const signum_t sig = SIGINT) { instance().stop_internal(sig); }
+    static void stop(const signum_t sig = SIGINT)
+    {
+        instance().stop_internal(sig);
+    }
     static int exit_code() { return instance().exit_code_internal(); }
 
- private:
+private:
     static inline signal_manager& instance()
     {
         static signal_manager mgr;
         return mgr;
     }
 
-    signal_manager() : m_running(false) { }
+    signal_manager() : m_running(false) {}
     signal_manager(const signal_manager&) = delete;
     signal_manager& operator=(const signal_manager&) = delete;
-   ~signal_manager() = default;
+    ~signal_manager() = default;
 
-    bool block_signals_internal(const sigset& signals, const std::chrono::nanoseconds timeout)
+    bool block_signals_internal(const sigset& signals,
+                                const std::chrono::nanoseconds timeout)
     {
         this_thread::block_signals(sigset(true));
         m_timeout = timeout;
@@ -399,7 +432,8 @@ class signal_manager
         return true;
     }
 
-    int exec_internal(const signal_handler signalHandler, const exit_handler exitHandler)
+    int exec_internal(const signal_handler signalHandler,
+                      const exit_handler exitHandler)
     {
         m_running = true;
         while (m_running)
@@ -413,8 +447,8 @@ class signal_manager
                 signum = wait(m_signals, &info);
 
             if (signum)
-	    {
-	        if (!signalHandler(signum, info))
+            {
+                if (!signalHandler(signum, info))
                     m_running = false;
             }
         }
@@ -422,17 +456,20 @@ class signal_manager
         m_exit_code = exitHandler();
         return m_exit_code;
     }
-    
-    void exec_internal_noret(const signal_handler signalHandler, const exit_handler exitHandler)
+
+    void exec_internal_noret(const signal_handler signalHandler,
+                             const exit_handler exitHandler)
     {
         exec_internal(signalHandler, exitHandler);
     }
-    
-    void exec_async_internal(const signal_handler signalHandler, const exit_handler exitHandler)
+
+    void exec_async_internal(const signal_handler signalHandler,
+                             const exit_handler exitHandler)
     {
-        m_thread = std::thread(std::bind(&signal_manager::exec_internal_noret, this, signalHandler, exitHandler));
+        m_thread = std::thread(std::bind(&signal_manager::exec_internal_noret,
+                                         this, signalHandler, exitHandler));
     }
-    
+
     void wait_for_exec_async_internal()
     {
         if (m_thread.joinable())
@@ -442,22 +479,26 @@ class signal_manager
     void stop_internal(const signum_t signum = SIGINT)
     {
         if (m_running)
-	{
-	    m_running = false;
-	    ::kill(0, signum);
-	}
-        
+        {
+            m_running = false;
+            ::kill(0, signum);
+        }
+
         if (m_thread.joinable())
             m_thread.join();
     }
-    
+
     int exit_code_internal() { return m_exit_code; }
 
- private:
+private:
     static int default_exit_handler() { return 0; }
-    static bool default_signal_handler(const signum_t signum, const ::siginfo_t& info) { return false; }
+    static bool default_signal_handler(const signum_t signum,
+                                       const ::siginfo_t& info)
+    {
+        return false;
+    }
 
- private:
+private:
     sigset m_signals;
     std::atomic< bool > m_running;
     std::chrono::nanoseconds m_timeout = std::chrono::nanoseconds(0);

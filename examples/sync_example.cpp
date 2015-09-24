@@ -27,11 +27,11 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include <psig/psig.hpp>
 #include <iostream>
 
-bool handle_signal(int sig)
+bool handle_signal(int sig, const siginfo_t info)
 {
     std::cout << "Handling signal " << sig << std::endl;
 
@@ -52,7 +52,7 @@ int handle_exit()
     return 0;
 }
 
-extern "C" int main(int argc, char *argv[])
+extern "C" int main(int argc, char* argv[])
 {
     psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
     psig::signal_manager::block_signals(signals);
