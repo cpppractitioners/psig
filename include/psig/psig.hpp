@@ -157,7 +157,7 @@ class sigset
     }
 
  private:
-    friend sigset this_thread::impl::get_mask();  // for init_handle()
+    friend sigset this_thread::impl::get_mask();  // for init_from_handle()
 
     void copy_handle(const sigset& that)
     {
@@ -169,7 +169,7 @@ class sigset
         for (signum_t signum : signums)
 	    insert(signum);
     }
-    void init_handle()
+    void init_from_handle()
     {
         for (signum_t signum : sigset(true).signals())
             if (::sigismember(&m_handle, signum))
@@ -233,7 +233,7 @@ inline sigset get_mask()
 {
     sigset oldset;
     ::pthread_sigmask(SIG_UNBLOCK, nullptr, oldset.native_handle());
-    oldset.init_handle();
+    oldset.init_from_handle();
     return oldset;
 }
 } // namespace impl
@@ -311,7 +311,7 @@ class signal_manager
  public:
     static bool block_signals(const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
     {
-        return instance().block_signals_internal(timeout);
+        return instance().block_signals_internal({SIGINT, SIGTERM, SIGHUP}, timeout);
     }
 
     static bool block_signals(const sigset& signals, const std::chrono::nanoseconds timeout = std::chrono::nanoseconds(0))
@@ -383,41 +383,30 @@ class signal_manager
     signal_manager& operator=(const signal_manager&) = delete;
    ~signal_manager() = default;
 
-    bool block_signals_internal(const std::chrono::nanoseconds timeout)
-    {
-        this_thread::fill_mask();
-
-        m_timeout = timeout;
-        m_running = true;
-
-        m_signals += SIGHUP;
-        m_signals += SIGINT;
-        m_signals += SIGTERM;
-        return true;
-    }
-
     bool block_signals_internal(const sigset& signals, const std::chrono::nanoseconds timeout)
     {
         this_thread::fill_mask();
         m_timeout = timeout;
         m_signals = signals;
-        m_running = true;
         return true;
     }
 
     int exec_internal(const signal_handler signalHandler, const exit_handler exitHandler)
     {
+        m_thraed_id = std::this_thread::get_id();
+        m_running = true;
+
         while (m_running)
         {
             ::siginfo_t info;
             signum_t signum;
 
-            if (m_timeout > std::chrono::nanoseconds(0))
+            if (m_timeout)
                 signum = wait(m_signals, m_timeout, &info);
             else
                 signum = wait(m_signals, &info);
 
-            if (signum > 0)
+            if (signum)
 	    {
                 if (!signalHandler(signum))
                     m_running = false;
@@ -446,8 +435,11 @@ class signal_manager
 
     void stop_internal(const signum_t signum = SIGINT)
     {
-        m_running = false;
-        ::raise(signum);
+        if (m_running)
+	{
+	    m_running = false;
+	    ::pthread_kill(m_thread_id, signum);
+	}
         
         if (m_thread.joinable())
             m_thread.join();
@@ -465,6 +457,7 @@ class signal_manager
     std::atomic< bool > m_running;
     std::chrono::nanoseconds m_timeout = std::chrono::nanoseconds(0);
     std::thread m_thread;
+    std::thread::id m_thread_id;
     int m_exit_code = 0;
 };
 
