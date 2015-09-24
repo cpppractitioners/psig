@@ -36,7 +36,7 @@ for DIST in $*; do
 
     CHANGES=`ls *.changes | tail -1`
     debsign $CHANGES
-    dput ppa:cpppractitioners/cp3 $CHANGES
+    dput ppa:cpppractitioners/ppa $CHANGES
 
     popd
 done
