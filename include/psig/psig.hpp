@@ -178,28 +178,42 @@ class sigset
     signals_type m_signals;
 };
 
-sigset operator+(const sigset& lhs, const sigset& rhs)
+inline sigset operator+(const sigset& lhs, const sigset& rhs)
 {
     sigset ret(lhs);
     ret += rhs;
     return ret;
 }
 
-sigset operator-(const sigset& lhs, const sigset& rhs)
+inline sigset operator-(const sigset& lhs, const sigset& rhs)
 {
     sigset ret(lhs);
     ret -= rhs;
     return ret;
 }
 
-sigset operator&(const sigset& lhs, const sigset& rhs)
+inline sigset operator+(const sigset& lhs, const signum_t rhs)
+{
+    sigset ret(lhs);
+    ret -= rhs;
+    return ret;
+}
+
+inline sigset operator-(const sigset& lhs, const signum_t rhs)
+{
+    sigset ret(lhs);
+    ret -= rhs;
+    return ret;
+}
+
+inline sigset operator&(const sigset& lhs, const sigset& rhs)
 {
     sigset ret(lhs);
     ret &= rhs;
     return ret;
 }
 
-sigset operator|(const sigset& lhs, const sigset& rhs)
+inline sigset operator|(const sigset& lhs, const sigset& rhs)
 {
     sigset ret(lhs);
     ret |= rhs;
