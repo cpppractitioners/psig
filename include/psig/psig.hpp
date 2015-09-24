@@ -235,20 +235,17 @@ inline sigset get_mask()
 }
 } // namespace impl
 
-inline sigset get_mask() noexcept { return impl::get_mask(); }
-inline sigset set_mask(const sigset& newset) noexcept { return impl::set_mask(SIG_SETMASK, newset); }
+inline sigset blocked_signals() noexcept { return impl::get_mask(); }
 
-inline sigset fill_mask() noexcept { return impl::set_mask(SIG_SETMASK, sigset(true)); }
-inline sigset clear_mask() noexcept { return impl::set_mask(SIG_SETMASK, sigset()); }
+inline sigset block_signals(const sigset& newset) noexcept { return impl::set_mask(SIG_SETMASK, newset); }
+inline sigset unblock_signals(const sigset& newset) noexcept { return impl::set_mask(SIG_UNBLOCK, newset); }
 
-inline sigset add_mask(const sigset& addset) noexcept { return impl::set_mask(SIG_BLOCK, addset); }
-inline sigset sub_mask(const sigset& subset) noexcept { return impl::set_mask(SIG_UNBLOCK, subset); }
+inline sigset block_all_signals() noexcept { return impl::set_mask(SIG_SETMASK, sigset(true)); }
+inline sigset unblock_all_signals() noexcept { return impl::set_mask(SIG_SETMASK, sigset()); }
 
-inline sigset add_mask(const signum_t signum) noexcept { return add_mask(sigset(signum)); }
-inline sigset sub_mask(const signum_t signum) noexcept { return sub_mask(sigset(signum)); }
 }  // namespace this_thread
 
-namespace this_process
+namespace this_process 
 {
 inline sigset get_registered_signals()
 {
@@ -336,8 +333,7 @@ class signal_manager
 
     static int exec()
     {
-        return exec(&signal_manager::default_signal_handler, 
-		    &signal_manager::default_exit_handler);
+        return exec(&signal_manager::default_signal_handler, &signal_manager::default_exit_handler);
     }
     
     static void exec_async(const signal_handler signalHandler, const exit_handler exitHandler)
@@ -357,8 +353,7 @@ class signal_manager
 
     static void exec_async()
     {
-        exec_async(&signal_manager::default_signal_handler,
-		   &signal_manager::default_exit_handler);
+        exec_async(&signal_manager::default_signal_handler, &signal_manager::default_exit_handler);
     }
     
     static void wait_for_exec_async()
@@ -368,7 +363,6 @@ class signal_manager
 
     static void kill(const signum_t sig = SIGINT) { ::kill(0, sig); }
     static void stop(const signum_t sig = SIGINT) { instance().stop_internal(sig); }
-    
     static int exit_code() { return instance().exit_code_internal(); }
 
  private:
@@ -385,7 +379,7 @@ class signal_manager
 
     bool block_signals_internal(const sigset& signals, const std::chrono::nanoseconds timeout)
     {
-        this_thread::fill_mask();
+        this_thread::block_signals(sigset(true));
         m_timeout = timeout;
         m_signals = signals;
         return true;

@@ -10,12 +10,12 @@
 
 void test_mask()
 {
-    psig::sigset emptysigset = psig::this_thread::get_mask();
+    psig::sigset emptysigset = psig::this_thread::blocked_signals();
     KTL_CHECK(emptysigset.empty());
 
     psig::sigset newsigset{SIGTERM, SIGINT};
-    psig::sigset oldsigset = psig::this_thread::set_mask(newsigset);
-    psig::sigset cursigset = psig::this_thread::get_mask();
+    psig::sigset oldsigset = psig::this_thread::block_signals(newsigset);
+    psig::sigset cursigset = psig::this_thread::blocked_signals();
 
     std::cout << "Signals in new mask: ";
     for (psig::signum_t signum : newsigset.signals()) std::cout << signum << " ";
@@ -42,15 +42,15 @@ void test_mask()
     KTL_CHECK(newsigset.has(SIGINT) == false);
     KTL_CHECK(newsigset.has(SIGHUP) == false);
 
-    psig::this_thread::clear_mask();
-    cursigset = psig::this_thread::get_mask();
+    psig::this_thread::unblock_all_signals();
+    cursigset = psig::this_thread::blocked_signals();
     KTL_CHECK(cursigset.empty());
     KTL_CHECK(cursigset.has(SIGTERM) == false);
     KTL_CHECK(cursigset.has(SIGINT) == false);
     KTL_CHECK(cursigset.has(SIGHUP) == false);
 
-    psig::this_thread::fill_mask();
-    cursigset = psig::this_thread::get_mask();
+    psig::this_thread::block_all_signals();
+    cursigset = psig::this_thread::blocked_signals();
     KTL_CHECK(cursigset.empty() == false);
     KTL_CHECK(cursigset.has(SIGTERM));
     KTL_CHECK(cursigset.has(SIGINT));
