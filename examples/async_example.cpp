@@ -27,14 +27,14 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 #include <psig/psig.hpp>
 #include <iostream>
 #include <atomic>
 
 std::atomic< bool > g_running(true);
 
-bool handle_signal(int sig)
+bool handle_signal(int sig, const siginfo_t& info)
 {
     std::cout << "Handling signal " << sig << std::endl;
 
@@ -53,24 +53,24 @@ int handle_exit()
 {
     std::cout << "Handling exit" << std::endl;
     g_running = false;
-    
+
     return 0;
 }
 
-extern "C" int main(int argc, char *argv[])
+extern "C" int main(int argc, char* argv[])
 {
-    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
-    psig::signal_manager::block_signals(signals);
+    psig::signal_manager::block_all_signals();
 
-    psig::signal_manager::exec_async(handle_signal, handle_exit);
-    
+    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
+    psig::signal_manager::exec_async(signals, handle_signal, handle_exit);
+
     // do initialization here
-    
+
     while (g_running)
     {
         // application's event loop
     }
-    
+
     psig::signal_manager::wait_for_exec_async();
     return psig::signal_manager::exit_code();
 }
