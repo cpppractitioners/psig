@@ -59,10 +59,10 @@ int handle_exit()
 
 extern "C" int main(int argc, char* argv[])
 {
-    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
-    psig::signal_manager::block_signals(signals);
+    psig::signal_manager::block_all_signals();
 
-    psig::signal_manager::exec_async(handle_signal, handle_exit);
+    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
+    psig::signal_manager::exec_async(signals, handle_signal, handle_exit);
 
     // do initialization here
 

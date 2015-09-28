@@ -30,12 +30,21 @@
 
 #include <psig/psig.hpp>
 #include <iostream>
+#include <unistd.h>
 
-bool g_raw = false;
+int g_raw1 = 0;
+int g_raw2 = 0;
+
+void raw_signal_sigaction(int sig, ::siginfo_t* info, void*)
+{
+    std::cout << "raw handler: " << sig << std::endl;
+    g_raw1 = 1;
+}
 
 void raw_signal_handler(int sig)
 {
-    g_raw = true;
+    std::cout << "raw handler: " << sig << std::endl;
+    g_raw2 = 2;
 }
 
 bool handle_signal(int sig, const siginfo_t info)
@@ -44,9 +53,8 @@ bool handle_signal(int sig, const siginfo_t info)
 
     switch (sig)
     {
-        case SIGTERM:
-        case SIGHUP:
         case SIGINT:
+        case SIGHUP:
             return false;
         default:
             return true;
@@ -61,23 +69,27 @@ int handle_exit()
 
 extern "C" int main(int argc, char* argv[])
 {
-    struct sigaction action;
+    psig::signal_manager::block_all_signals();
+
+    struct ::sigaction action;
     action.sa_sigaction = nullptr;
     action.sa_restorer = nullptr;
-    action.sa_handler = raw_signal_handler;
+    action.sa_handler = &raw_signal_handler;
     action.sa_flags = 0;
 
-    sigaction(SIGINT, &action, nullptr);
-
-    psig::sigset signals{SIGINT, SIGTERM, SIGHUP};
-    psig::signal_manager::block_signals(signals);
+    ::sigaction(SIGTERM, &action, nullptr);
 
     // do application initialization here
 
-    int retval = psig::signal_manager::exec(handle_signal, handle_exit);
-
-    if (g_raw)
+    psig::sigset signals{SIGINT, SIGHUP};
+    int retval = psig::signal_manager::exec(signals, handle_signal, handle_exit);
+    if (g_raw1)
     {
-        std::cout << "raw_signal_handler() was called." << std::endl;
+        std::cout << "raw_signal_handler() was called then signal_manager_handler()." << std::endl;
+    }
+
+    if (g_raw2)
+    {
+        std::cout << "signal_manager_handler() was called then raw_signal_handler()." << std::endl;
     }
 }
